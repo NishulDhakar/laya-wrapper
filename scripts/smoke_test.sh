@@ -7,7 +7,8 @@
 #     BASE_URL=https://api.example.com ADMIN_SECRET=... bash scripts/smoke_test.sh
 #
 # Env: BASE_URL (default http://localhost:8080), ADMIN_SECRET (required),
-#      WAIT_SECONDS (how long to wait for the model to load, default 900), KEEP_KEY=1 to keep the key.
+#      WAIT_SECONDS (how long to wait for the model to load, default 900), KEEP_KEY=1 to keep the key,
+#      REQUEST_TIMEOUT (seconds per HTTP request, default 120).
 set -uo pipefail
 
 BASE_URL="${BASE_URL:-http://localhost:8080}"
@@ -34,7 +35,7 @@ print(d)' "$1" 2>/dev/null
 TMP=$(mktemp)
 request() {
   local method=$1 path=$2 data=$3; shift 3
-  local args=(-sS -o "$TMP" -w '%{http_code}' -X "$method" "$BASE_URL$path" -H 'Content-Type: application/json')
+  local args=(-sS --max-time "${REQUEST_TIMEOUT:-120}" -o "$TMP" -w '%{http_code}' -X "$method" "$BASE_URL$path" -H 'Content-Type: application/json')
   for h in "$@"; do args+=(-H "$h"); done
   [ -n "$data" ] && args+=(--data "$data")
   if STATUS=$(curl "${args[@]}" 2>"$TMP.err"); then BODY=$(cat "$TMP"); else STATUS="000"; BODY=$(cat "$TMP.err"); fi

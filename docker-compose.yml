@@ -1,6 +1,7 @@
 # laya-hub on Coolify (build pack: Docker Compose, location: /docker-compose.yml).
-# No host ports are published: Coolify's proxy routes domains to containers, and the backend
-# is only reachable on the internal network. The dashboard service is added in step 2.
+# No host ports are published: Coolify's proxy routes domains to containers.
+#   backend   - internal only (port 8080). Give it NO domain unless you want /v1 public.
+#   dashboard - the only service that gets a domain, e.g. https://hub.example.com:3000
 
 services:
   backend:
@@ -37,6 +38,29 @@ services:
       retries: 3
       # The first boot downloads the model (~1.7 GB) before /health turns green.
       start_period: 15m
+
+  dashboard:
+    build:
+      context: ./dashboard
+    restart: unless-stopped
+    expose:
+      - "3000"
+    environment:
+      BACKEND_URL: http://backend:8080
+      ADMIN_SECRET: ${ADMIN_SECRET:?set ADMIN_SECRET}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD}
+      SESSION_SECRET: ${SESSION_SECRET:-}
+      COOKIE_SECURE: ${COOKIE_SECURE:-true}
+      DEFAULT_RATE_LIMIT: ${DEFAULT_RATE_LIMIT:-60}
+    depends_on:
+      - backend  # started, not healthy: the dashboard works (and shows "loading") while the model loads
+    mem_limit: 512m
+    healthcheck:
+      test: ["CMD", "node", "-e", "fetch('http://localhost:3000/api/health').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      start_period: 30s
 
 volumes:
   models:
