@@ -215,3 +215,20 @@ def test_settings_reject_unknown_model(monkeypatch):
     monkeypatch.setenv("UNLOADED_MODEL_POLICY", "maybe")
     with pytest.raises(ValueError, match="UNLOADED_MODEL_POLICY"):
         Settings.from_env()
+
+
+def test_fake_router_matches_laya():
+    """Guard against the fake drifting from the real laya.Router API (no model is loaded)."""
+    import inspect
+
+    from laya.router import Router
+
+    from .conftest import FakeRouter
+
+    assert isinstance(inspect.getattr_static(Router, "loaded"), property)
+    assert isinstance(inspect.getattr_static(FakeRouter, "loaded"), property)
+    for method in ("route", "predict"):
+        params = inspect.signature(getattr(Router, method)).parameters
+        assert {"state", "questions", "model"} <= set(params)
+    assert "max_loaded" in inspect.signature(Router.__init__).parameters
+    assert "names" in inspect.signature(Router.preload).parameters

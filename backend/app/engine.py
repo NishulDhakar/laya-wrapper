@@ -51,7 +51,7 @@ class Engine:
                 router.preload(self.settings.laya_models)
                 self.router = router
                 self.load_error = None
-                log.info("Laya ready: %s", router.loaded())
+                log.info("Laya ready: %s", router.loaded)
             except Exception as exc:
                 delay = retry_delays[min(attempt, len(retry_delays) - 1)]
                 self.load_error = f"{type(exc).__name__}: {exc}"
@@ -64,7 +64,7 @@ class Engine:
         return self.router is not None
 
     def loaded_models(self) -> list[str]:
-        return list(self.router.loaded()) if self.router is not None else []
+        return list(self.router.loaded) if self.router is not None else []  # a property on laya.Router
 
     # ------------------------------------------------------------ inference
     def decide(self, state: Any, questions: dict[str, dict], model: str | None = None) -> Outcome:

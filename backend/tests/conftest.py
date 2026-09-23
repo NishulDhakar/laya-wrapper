@@ -10,13 +10,15 @@ KNOWN_MODELS = {"english", "multilingual", "typed-decisions"}
 
 
 class FakeRouter:
-    """Mimics the parts of laya.Router the hub uses: route(), loaded() and predict()."""
+    """Mimics the parts of laya.Router the hub uses: route(), .loaded and predict().
+    test_fake_router_matches_laya checks these against the real class."""
 
     def __init__(self, loaded=("english",)):
         self._loaded = list(loaded)
         self.calls = []
 
-    def loaded(self):
+    @property
+    def loaded(self):  # a property on laya.Router, not a method
         return list(self._loaded)
 
     def route(self, state, questions=None, model=None):
