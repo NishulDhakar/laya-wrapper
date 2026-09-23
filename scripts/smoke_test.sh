@@ -66,7 +66,12 @@ while :; do
   if [ "$(date +%s)" -ge "$deadline" ]; then
     fail "GET /health -> still not ready after ${WAIT_SECONDS}s (HTTP $STATUS: $BODY)"; exit 1
   fi
-  info "model not ready yet (HTTP $STATUS, status=${state:-unreachable}); retrying in 10s..."
+  if [ -z "$state" ]; then
+    info "unexpected response from /health (HTTP $STATUS): ${BODY:0:300}; retrying in 10s..."
+    info "(check the container's Runtime Logs for a traceback)"
+  else
+    info "model not ready yet (HTTP $STATUS, status=$state); retrying in 10s..."
+  fi
   last_error=$(echo "$BODY" | json_get error)
   [ -n "$last_error" ] && [ "$last_error" != "None" ] && info "last load error: ${last_error:0:300}"
   sleep 10
