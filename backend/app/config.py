@@ -11,6 +11,9 @@ def _bool(name: str, default: bool) -> bool:
     return os.environ.get(name, str(default)).strip().lower() in ("1", "true", "yes", "on")
 
 
+KNOWN_MODELS = {"english", "multilingual", "typed-decisions"}
+
+
 @dataclass
 class Settings:
     database_url: str = "sqlite:////data/hub.db"
@@ -26,6 +29,7 @@ class Settings:
     max_body_bytes: int = 256_000
     default_rate_limit: int = 60
     log_request_bodies: bool = False
+    allow_admin_via_proxy: bool = False
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -43,9 +47,13 @@ class Settings:
             max_body_bytes=_int("MAX_BODY_BYTES", cls.max_body_bytes),
             default_rate_limit=_int("DEFAULT_RATE_LIMIT", cls.default_rate_limit),
             log_request_bodies=_bool("LOG_REQUEST_BODIES", False),
+            allow_admin_via_proxy=_bool("ALLOW_ADMIN_VIA_PROXY", False),
         )
         if s.unloaded_model_policy not in ("reject", "fallback"):
             raise ValueError("UNLOADED_MODEL_POLICY must be 'reject' or 'fallback'")
         if not s.laya_models:
             raise ValueError("LAYA_MODELS must list at least one model")
+        unknown = set(s.laya_models) - KNOWN_MODELS
+        if unknown:
+            raise ValueError(f"LAYA_MODELS has unknown model(s) {sorted(unknown)}; use {sorted(KNOWN_MODELS)}")
         return s

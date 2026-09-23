@@ -175,3 +175,43 @@ def test_model_loading_returns_503(make_client, tmp_path):
     key = c.post("/admin/keys", json={"name": "k"}, headers={"X-Admin-Secret": "test-secret"}).json()["key"]
     assert c.get("/health").status_code == 503
     assert post(c, key, {"state": "hi", "questions": {"q": NOUL}}).status_code == 503
+
+
+def test_load_retries_until_success(tmp_path, monkeypatch):
+    import sys
+    import types
+
+    from app.config import Settings
+    from app.engine import Engine
+    from .conftest import FakeRouter
+
+    attempts = {"n": 0}
+
+    class FlakyRouter(FakeRouter):
+        def __init__(self, **kwargs):
+            attempts["n"] += 1
+            if attempts["n"] < 3:
+                raise OSError("network down")
+            super().__init__()
+
+        def preload(self, names):
+            return self
+
+    monkeypatch.setitem(sys.modules, "laya", types.SimpleNamespace(Router=FlakyRouter))
+    monkeypatch.setitem(sys.modules, "torch", types.SimpleNamespace(set_num_threads=lambda n: None))
+    engine = Engine(Settings(database_url=f"sqlite:///{tmp_path}/x.db"))
+    engine.load(retry_delays=(0,))
+    assert engine.ready and attempts["n"] == 3 and engine.load_error is None
+
+
+def test_settings_reject_unknown_model(monkeypatch):
+    from app.config import Settings
+
+    monkeypatch.setenv("LAYA_MODELS", "englsh")
+    with pytest.raises(ValueError, match="unknown model"):
+        Settings.from_env()
+    monkeypatch.setenv("LAYA_MODELS", "english, multilingual")
+    assert Settings.from_env().laya_models == ["english", "multilingual"]
+    monkeypatch.setenv("UNLOADED_MODEL_POLICY", "maybe")
+    with pytest.raises(ValueError, match="UNLOADED_MODEL_POLICY"):
+        Settings.from_env()

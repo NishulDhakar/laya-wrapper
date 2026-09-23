@@ -2,6 +2,7 @@
 enforces UNLOADED_MODEL_POLICY."""
 import logging
 import threading
+import time
 from dataclasses import dataclass, field
 from typing import Any
 
@@ -35,20 +36,28 @@ class Engine:
         self._slots = threading.BoundedSemaphore(settings.max_concurrency)
 
     # ------------------------------------------------------------ loading
-    def load(self) -> None:
-        """Build the Router and preload LAYA_MODELS. Slow (download + build); run it off the main thread."""
-        try:
-            import torch
-            from laya import Router
+    def load(self, retry_delays=(15, 30, 60, 120, 300)) -> None:
+        """Build the Router and preload LAYA_MODELS. Slow (download + build), so it runs in a
+        background thread. A failed attempt (e.g. a network blip during the download) is retried
+        with backoff, forever, so the server heals without a restart; /health shows the last error."""
+        attempt = 0
+        while self.router is None:
+            try:
+                import torch
+                from laya import Router
 
-            torch.set_num_threads(self.settings.laya_threads)
-            router = Router(max_loaded=len(self.settings.laya_models))
-            router.preload(self.settings.laya_models)
-            self.router = router
-            log.info("Laya ready: %s", router.loaded())
-        except Exception as exc:  # surfaced through /health
-            log.exception("failed to load Laya")
-            self.load_error = f"{type(exc).__name__}: {exc}"
+                torch.set_num_threads(self.settings.laya_threads)
+                router = Router(max_loaded=len(self.settings.laya_models))
+                router.preload(self.settings.laya_models)
+                self.router = router
+                self.load_error = None
+                log.info("Laya ready: %s", router.loaded())
+            except Exception as exc:
+                delay = retry_delays[min(attempt, len(retry_delays) - 1)]
+                self.load_error = f"{type(exc).__name__}: {exc}"
+                log.exception("failed to load Laya (attempt %d); retrying in %ds", attempt + 1, delay)
+                attempt += 1
+                time.sleep(delay)
 
     @property
     def ready(self) -> bool:

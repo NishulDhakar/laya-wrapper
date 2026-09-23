@@ -1,0 +1,43 @@
+# laya-hub on Coolify (build pack: Docker Compose, location: /docker-compose.yml).
+# No host ports are published: Coolify's proxy routes domains to containers, and the backend
+# is only reachable on the internal network. The dashboard service is added in step 2.
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    expose:
+      - "8080"
+    environment:
+      ADMIN_SECRET: ${ADMIN_SECRET:?set ADMIN_SECRET}
+      LAYA_MODELS: ${LAYA_MODELS:-english}
+      LAYA_THREADS: ${LAYA_THREADS:-4}
+      MAX_CONCURRENCY: ${MAX_CONCURRENCY:-2}
+      QUEUE_TIMEOUT_S: ${QUEUE_TIMEOUT_S:-30}
+      UNLOADED_MODEL_POLICY: ${UNLOADED_MODEL_POLICY:-reject}
+      MAX_STATE_BYTES: ${MAX_STATE_BYTES:-20000}
+      MAX_QUESTIONS: ${MAX_QUESTIONS:-20}
+      MAX_CHOICE_OPTIONS: ${MAX_CHOICE_OPTIONS:-10}
+      MAX_BODY_BYTES: ${MAX_BODY_BYTES:-256000}
+      DEFAULT_RATE_LIMIT: ${DEFAULT_RATE_LIMIT:-60}
+      LOG_REQUEST_BODIES: ${LOG_REQUEST_BODIES:-false}
+      ALLOW_ADMIN_VIA_PROXY: ${ALLOW_ADMIN_VIA_PROXY:-false}
+      DATABASE_URL: ${DATABASE_URL:-sqlite:////data/hub.db}
+      HF_TOKEN: ${HF_TOKEN:-}
+    volumes:
+      - models:/models
+      - data:/data
+    mem_limit: 3g
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+      # The first boot downloads the model (~1.7 GB) before /health turns green.
+      start_period: 15m
+
+volumes:
+  models:
+  data:
