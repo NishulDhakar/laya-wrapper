@@ -58,3 +58,15 @@ def test_health_is_public(client):
     r = client.get("/health")
     assert r.status_code == 200
     assert r.json()["model_loaded"] is True
+
+
+def test_admin_blocked_through_proxy(client, make_client):
+    proxied = {**ADMIN, "X-Forwarded-For": "203.0.113.7"}
+    r = client.get("/admin/keys", headers=proxied)
+    assert r.status_code == 403 and r.json()["error"]["code"] == "admin_internal_only"
+    assert make_client(allow_admin_via_proxy=True).get("/admin/keys", headers=proxied).status_code == 200
+
+
+def test_v1_works_through_proxy(client, api_key):
+    r = client.post("/v1/systemone", json=BODY, headers={**auth(api_key), "X-Forwarded-For": "203.0.113.7"})
+    assert r.status_code == 200

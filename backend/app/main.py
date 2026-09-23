@@ -59,7 +59,8 @@ def create_app(settings: Settings | None = None, router: Any = None) -> FastAPI:
     def health():
         """503 until the model is loaded, so container healthchecks can use a plain `curl -f`."""
         body = {
-            "status": "ok" if engine.ready else ("error" if engine.load_error else "loading"),
+            # While loading, `error` holds the last failed attempt (loading is retried with backoff).
+            "status": "ok" if engine.ready else "loading",
             "model_loaded": engine.ready,
             "models": engine.loaded_models(),
             "error": engine.load_error,

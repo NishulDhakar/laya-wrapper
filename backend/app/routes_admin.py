@@ -13,7 +13,14 @@ from .usage import usage_report
 
 
 def require_admin(request: Request, x_admin_secret: str | None = Header(None)):
-    check_admin(x_admin_secret, request.app.state.settings.admin_secret)
+    settings = request.app.state.settings
+    # Requests through Coolify's proxy (Traefik/Caddy) always carry X-Forwarded-For; the dashboard's
+    # server-side calls on the internal network never do. So if the backend is ever given a public
+    # domain, /admin stays internal-only unless explicitly allowed.
+    if "x-forwarded-for" in request.headers and not settings.allow_admin_via_proxy:
+        raise HubError(403, "admin_internal_only",
+                       "admin endpoints are only reachable on the internal network (set ALLOW_ADMIN_VIA_PROXY=true to change this)")
+    check_admin(x_admin_secret, settings.admin_secret)
 
 
 router = APIRouter(prefix="/admin", tags=["admin"], dependencies=[Depends(require_admin)])
