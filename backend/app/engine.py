@@ -49,6 +49,7 @@ class Engine:
                 torch.set_num_threads(self.settings.laya_threads)
                 router = Router(max_loaded=len(self.settings.laya_models))
                 router.preload(self.settings.laya_models)
+                self._warm_up(router)
                 self.router = router
                 self.load_error = None
                 log.info("Laya ready: %s", router.loaded)
@@ -58,6 +59,17 @@ class Engine:
                 log.exception("failed to load Laya (attempt %d); retrying in %ds", attempt + 1, delay)
                 attempt += 1
                 time.sleep(delay)
+
+    def _warm_up(self, router: Any) -> None:
+        """One tiny prediction per model, so the first real request doesn't pay the one-off CPU
+        setup cost (~10 s on a small VPS). Runs before /health reports ready."""
+        for name in self.settings.laya_models:
+            started = time.perf_counter()
+            try:
+                router.predict("Warm-up.", {"q": {"type": "noul", "instructions": "Is this a test?"}}, model=name)
+                log.info("warmed up %s in %.1fs", name, time.perf_counter() - started)
+            except Exception:
+                log.exception("warm-up of %s failed (continuing)", name)
 
     @property
     def ready(self) -> bool:

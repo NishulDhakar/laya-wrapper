@@ -202,6 +202,7 @@ def test_load_retries_until_success(tmp_path, monkeypatch):
     engine = Engine(Settings(database_url=f"sqlite:///{tmp_path}/x.db"))
     engine.load(retry_delays=(0,))
     assert engine.ready and attempts["n"] == 3 and engine.load_error is None
+    assert engine.router.calls, "warm-up prediction should have run"
 
 
 def test_settings_reject_unknown_model(monkeypatch):
