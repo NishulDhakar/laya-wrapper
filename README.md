@@ -91,7 +91,7 @@ For services outside this server that should call the API directly:
 ## Dashboard
 
 Single-user login (`ADMIN_PASSWORD`) with a signed, `httpOnly`, `SameSite=Lax` session cookie
-(`Secure` whenever the dashboard is served over https; see `COOKIE_SECURE`). All backend calls happen in server components and server actions; the
+(`Secure` automatically whenever the dashboard is served over https). All backend calls happen in server components and server actions; the
 admin secret never reaches the browser.
 
 - **Overview** — calls today / 7 days, average and p95 latency, error rate, calls-per-day and
