@@ -38,10 +38,18 @@ export function passwordMatches(candidate: string): boolean {
  *  HTTPS (the proxy sets X-Forwarded-Proto), so a plain-http address like a generated sslip.io
  *  domain still works. "true" / "false" force it. */
 async function secureCookie(): Promise<boolean> {
-  const mode = (process.env.COOKIE_SECURE ?? "auto").toLowerCase();
-  if (mode === "true") return true;
-  if (mode === "false") return false;
+  const mode = (process.env.COOKIE_SECURE ?? "auto").trim().toLowerCase();
   const proto = (await headers()).get("x-forwarded-proto")?.split(",")[0].trim();
+  if (mode === "false") return false;
+  if (mode === "true") {
+    if (proto === "http") {
+      console.warn(
+        "COOKIE_SECURE=true but the dashboard is served over plain http: browsers will drop the " +
+          "session cookie and every page will bounce back to /login. Unset COOKIE_SECURE or use https.",
+      );
+    }
+    return true;
+  }
   return proto === "https";
 }
 

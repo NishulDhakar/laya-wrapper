@@ -50,7 +50,6 @@ services:
       ADMIN_SECRET: ${ADMIN_SECRET:?set ADMIN_SECRET}
       ADMIN_PASSWORD: ${ADMIN_PASSWORD:?set ADMIN_PASSWORD}
       SESSION_SECRET: ${SESSION_SECRET:-}
-      COOKIE_SECURE: ${COOKIE_SECURE:-auto}
       DEFAULT_RATE_LIMIT: ${DEFAULT_RATE_LIMIT:-60}
     depends_on:
       - backend  # started, not healthy: the dashboard works (and shows "loading") while the model loads
