@@ -1,7 +1,7 @@
 import "server-only";
 
 import { createHash, createHmac, timingSafeEqual } from "node:crypto";
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 import { redirect } from "next/navigation";
 import { cache } from "react";
 
@@ -34,13 +34,24 @@ export function passwordMatches(candidate: string): boolean {
   return safeEqual(candidate, expected);
 }
 
+/** COOKIE_SECURE: "auto" (default) marks the cookie Secure only when the site is served over
+ *  HTTPS (the proxy sets X-Forwarded-Proto), so a plain-http address like a generated sslip.io
+ *  domain still works. "true" / "false" force it. */
+async function secureCookie(): Promise<boolean> {
+  const mode = (process.env.COOKIE_SECURE ?? "auto").toLowerCase();
+  if (mode === "true") return true;
+  if (mode === "false") return false;
+  const proto = (await headers()).get("x-forwarded-proto")?.split(",")[0].trim();
+  return proto === "https";
+}
+
 export async function createSession(): Promise<void> {
   const expires = Math.floor(Date.now() / 1000) + MAX_AGE_S;
   const value = `${expires}.${sign(String(expires))}`;
   (await cookies()).set(COOKIE, value, {
     httpOnly: true,
     sameSite: "lax",
-    secure: process.env.NODE_ENV === "production" && process.env.COOKIE_SECURE !== "false",
+    secure: await secureCookie(),
     path: "/",
     maxAge: MAX_AGE_S,
   });
