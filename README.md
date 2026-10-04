@@ -1,4 +1,4 @@
-# laya-hub
+# laya
 
 A self-hosted API and admin dashboard on top of the open-source
 [Laya](https://github.com/NandhaKishorM/laya) decision model.
